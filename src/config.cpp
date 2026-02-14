@@ -40,6 +40,9 @@ AppConfig load_config(const std::string& path) {
 
     AppConfig config;
 
+    // Version config constant
+    config.version = "v1.1.0";
+
     // Server config
     if (auto server = root["server"]) {
         if (server["port"])  config.server.port = server["port"].as<uint16_t>();

@@ -47,7 +47,7 @@ static void signal_handler(int sig) {
 }
 
 static void print_usage(const char* program) {
-    std::cerr << "IST WebRTC Camera Server v1.0.0\n"
+    std::cerr << "IST WebRTC Camera Server\n"
               << "Remotely Operated Forklift - Camera Streaming\n\n"
               << "Usage: " << program << " [options]\n\n"
               << "Options:\n"
@@ -62,7 +62,6 @@ int main(int argc, char* argv[]) {
     // Default values
     std::string config_path = "config.yaml";
     std::string log_dir = "./logs";
-    std::string version = "v1.1.0";
     bool verbose = false;
 
     // Parse command line arguments
@@ -102,7 +101,7 @@ int main(int argc, char* argv[]) {
     spdlog::flush_on(spdlog::level::warn);  // auto-flush on warnings and above
 
     spdlog::info("==========================================");
-    spdlog::info("  IST WebRTC Camera Server {}", version);
+    spdlog::info("  IST WebRTC Camera Server");
     spdlog::info("  Remotely Operated Forklift");
     spdlog::info("==========================================");
     spdlog::info("Log directory: {}", log_dir);

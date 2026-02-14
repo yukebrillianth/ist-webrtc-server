@@ -274,7 +274,7 @@
     </div>
 
     <div class="footer">
-        <span>SYSTEM VERSION: 1.0.0-RC1</span>
+        <span>SYSTEM VERSION: <span id="version">-</span></span>
         <span id="clockDisplay">00:00:00</span>
     </div>
 
@@ -302,6 +302,9 @@
             `;
             cameraGrid.appendChild(div);
         }
+
+        // Version
+        const versionEl = document.getElementById('version')
 
         // ===== Configuration =====
         const WS_URL = `ws://${window.location.hostname || 'localhost'}:8554`;
@@ -399,6 +402,9 @@
         // ===== Message Handling =====
         function handleMessage(msg) {
             switch (msg.type) {
+                case 'version':
+                    versionEl.textContent = msg.version;
+                    break;
                 case 'camera_list':
                     cameras = msg.cameras || [];
                     console.log('[Cameras]', cameras);

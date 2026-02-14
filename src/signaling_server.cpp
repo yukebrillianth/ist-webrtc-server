@@ -65,6 +65,12 @@ bool SignalingServer::start() {
         ws->onOpen([this, client_id]() {
             spdlog::info("WebSocket opened for {}", client_id);
 
+            // Send version to client
+            json versionMsg;
+            versionMsg["type"] = "version";
+            versionMsg["version"] = config_.version;
+            send_to_client(client_id, versionMsg);
+
             // Send camera list to client
             json msg;
             msg["type"] = "camera_list";

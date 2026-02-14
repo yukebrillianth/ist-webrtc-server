@@ -62,6 +62,7 @@ struct WebRTCConfig {
  * @brief Top-level application configuration
  */
 struct AppConfig {
+    std::string                 version;    ///< Application version string
     ServerConfig                server;     ///< Server networking settings
     std::vector<CameraConfig>   cameras;    ///< Camera source definitions
     WebRTCConfig                webrtc;     ///< WebRTC parameters
