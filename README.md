@@ -1,6 +1,5 @@
 <p align="center">
   <img height="60" alt="IST Logo" src="https://github.com/user-attachments/assets/aa8510eb-fbbf-479d-bf4d-0bc31e30d549" />
-  &nbsp;&nbsp;&nbsp;&nbsp;
   <img height="60" alt="MRI Logo" src="https://github.com/user-attachments/assets/ac6bdb22-16b2-4b04-933a-4e31308e6525" />
   &nbsp;&nbsp;&nbsp;&nbsp;
   <img height="60" alt="ITS Logo" src="https://github.com/user-attachments/assets/8cf68a07-12ba-44c3-84b9-517e6502d9cc" />
