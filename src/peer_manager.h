@@ -2,7 +2,6 @@
 
 #include "config.h"
 #include "camera_pipeline.h"
-#include "h264_packetizer.h"
 #include <rtc/rtc.hpp>
 #include <nlohmann/json.hpp>
 #include <memory>

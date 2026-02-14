@@ -2,6 +2,7 @@
 build/
 cmake-build-*/
 .cache/
+compile_commands.json
 
 # IDE
 .vscode/
@@ -9,6 +10,7 @@ cmake-build-*/
 *.swp
 *.swo
 *~
+.clangd/
 
 # OS
 .DS_Store
@@ -19,3 +21,10 @@ Thumbs.db
 *.so
 *.a
 *.dylib
+
+# Logs (generated at runtime)
+logs/
+*.log
+
+# Runtime
+core

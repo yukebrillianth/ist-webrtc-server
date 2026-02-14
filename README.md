@@ -78,7 +78,7 @@ cameras:
     width: 1280
     height: 720
     fps: 30
-    bitrate: 2000
+    bitrate: 2000 # pengaturan bitrate ini hanya untuk kamera usb ajah
 
   - id: "cam_left"
     name: "Left Camera"
@@ -192,7 +192,6 @@ webrtc-server/
 │   ├── main.cpp               # Entry point, watchdog, file logging
 │   ├── config.h/cpp           # YAML configuration loader
 │   ├── camera_pipeline.h/cpp  # GStreamer capture + auto-recovery + bus monitor
-│   ├── h264_packetizer.h/cpp  # H264 NAL → WebRTC RTP bridge
 │   ├── signaling_server.h/cpp # WebSocket signaling server
 │   └── peer_manager.h/cpp     # WebRTC PeerConnection + callback lifecycle
 ├── web/

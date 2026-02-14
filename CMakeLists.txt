@@ -83,7 +83,6 @@ set(SOURCES
     src/camera_pipeline.cpp
     src/signaling_server.cpp
     src/peer_manager.cpp
-    src/h264_packetizer.cpp
 )
 
 # =============================================================================
