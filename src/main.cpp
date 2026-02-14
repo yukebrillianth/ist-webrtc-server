@@ -62,6 +62,7 @@ int main(int argc, char* argv[]) {
     // Default values
     std::string config_path = "config.yaml";
     std::string log_dir = "./logs";
+    std::string version = "v1.1.0";
     bool verbose = false;
 
     // Parse command line arguments
@@ -101,7 +102,7 @@ int main(int argc, char* argv[]) {
     spdlog::flush_on(spdlog::level::warn);  // auto-flush on warnings and above
 
     spdlog::info("==========================================");
-    spdlog::info("  IST WebRTC Camera Server v1.0.0");
+    spdlog::info("  IST WebRTC Camera Server {}", version);
     spdlog::info("  Remotely Operated Forklift");
     spdlog::info("==========================================");
     spdlog::info("Log directory: {}", log_dir);
