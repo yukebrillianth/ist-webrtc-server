@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IST Forklift - HMI Panel</title>
+    <style>
+        :root {
+            --bg-dark: #121212;
+            --bg-panel: #1e1e1e;
+            --border-color: #333333;
+            --text-primary: #e0e0e0;
+            --text-secondary: #aaaaaa;
+            --accent-green: #00ff00;
+            --accent-red: #ff3333;
+            --accent-yellow: #ffcc00;
+            --font-ui: 'Segoe UI', system-ui, sans-serif;
+            --font-mono: 'Consolas', 'Monaco', monospace;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-ui);
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Header --- */
+        .header {
+            height: 48px;
+            background-color: var(--bg-panel);
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+        }
+
+        .header h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .header .subtitle {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-left: 12px;
+            padding-left: 12px;
+            border-left: 1px solid #444;
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            font-size: 12px;
+            font-family: var(--font-mono);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #444;
+            border: 1px solid #000;
+        }
+
+        .status-indicator.connected {
+            background-color: var(--accent-green);
+        }
+
+        .status-indicator.error {
+            background-color: var(--accent-red);
+        }
+
+        .status-indicator.connecting {
+            background-color: var(--accent-yellow);
+        }
+
+        /* --- Main Grid --- */
+        .grid-container {
+            flex: 1;
+            padding: 4px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 4px;
+            background-color: #000;
+        }
+
+        .camera-panel {
+            position: relative;
+            background-color: #080808;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .camera-panel video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background-color: #000;
+        }
+
+        .camera-overlay-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 4px 8px;
+            border-bottom: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #fff;
+            font-weight: bold;
+            z-index: 10;
+        }
+
+        .camera-overlay-bottom {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 4px 8px;
+            border-top: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--accent-green);
+            z-index: 10;
+        }
+
+        .offline-message {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #555;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .offline-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+            opacity: 0.5;
+        }
+
+        /* --- Footer --- */
+        .footer {
+            height: 32px;
+            background-color: var(--bg-panel);
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-family: var(--font-ui);
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .btn:hover {
+            background-color: #444;
+        }
+
+        .btn:active {
+            background-color: #222;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="header">
+        <div style="display:flex; align-items:center">
+            <h1>IST Forklift</h1>
+            <span class="subtitle">REMOTE OPERATION TERMINAL</span>
+        </div>
+        <div class="status-bar">
+            <div class="status-item">
+                <div class="status-indicator" id="wsDot"></div>
+                <span id="wsStatus">DISCONNECTED</span>
+            </div>
+            <div class="status-item">
+                <div class="status-indicator" id="rtcDot"></div>
+                <span id="rtcStatus">NO VIDEO</span>
+            </div>
+            <button class="btn" id="connectBtn" onclick="toggleConnection()">CONNECT</button>
+        </div>
+    </div>
+
+    <div class="grid-container" id="cameraGrid">
+        <div class="camera-panel" id="cell_0">
+            <div class="camera-overlay-top" id="label_0">CAM 1</div>
+            <video id="video_0" autoplay playsinline muted style="display:none"></video>
+            <div class="offline-message" id="offline_0">
+                <div class="offline-icon">NO SIGNAL</div>
+                <div>CAMERA 01</div>
+            </div>
+            <div class="camera-overlay-bottom" id="stats_0"></div>
+        </div>
+        <div class="camera-panel" id="cell_1">
+            <div class="camera-overlay-top" id="label_1">CAM 2</div>
+            <video id="video_1" autoplay playsinline muted style="display:none"></video>
+            <div class="offline-message" id="offline_1">
+                <div class="offline-icon">NO SIGNAL</div>
+                <div>CAMERA 02</div>
+            </div>
+            <div class="camera-overlay-bottom" id="stats_1"></div>
+        </div>
+        <div class="camera-panel" id="cell_2">
+            <div class="camera-overlay-top" id="label_2">CAM 3</div>
+            <video id="video_2" autoplay playsinline muted style="display:none"></video>
+            <div class="offline-message" id="offline_2">
+                <div class="offline-icon">NO SIGNAL</div>
+                <div>CAMERA 03</div>
+            </div>
+            <div class="camera-overlay-bottom" id="stats_2"></div>
+        </div>
+        <div class="camera-panel" id="cell_3">
+            <div class="camera-overlay-top" id="label_3">CAM 4</div>
+            <video id="video_3" autoplay playsinline muted style="display:none"></video>
+            <div class="offline-message" id="offline_3">
+                <div class="offline-icon">NO SIGNAL</div>
+                <div>CAMERA 04</div>
+            </div>
+            <div class="camera-overlay-bottom" id="stats_3"></div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <span>SYSTEM VERSION: 1.0.0-RC1</span>
+        <span id="clockDisplay">00:00:00</span>
+    </div>
+
+    <script>
+        // ===== Configuration =====
+        const WS_URL = `ws://${window.location.hostname || 'localhost'}:8554`;
+
+        let ws = null;
+        let pc = null;
+        let connected = false;
+        let cameras = [];
+
+        // ===== Clock =====
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('en-US', { hour12: false });
+            document.getElementById('clockDisplay').textContent = timeString;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // ===== WebSocket Connection =====
+        function toggleConnection() {
+            if (connected) {
+                disconnect();
+            } else {
+                connect();
+            }
+        }
+
+        function connect() {
+            updateStatus('ws', 'connecting', 'CONNECTING...');
+            document.getElementById('connectBtn').textContent = 'CONNECTING...';
+            document.getElementById('connectBtn').disabled = true;
+
+            ws = new WebSocket(WS_URL);
+
+            ws.onopen = () => {
+                updateStatus('ws', 'connected', 'CONNECTED');
+                connected = true;
+                document.getElementById('connectBtn').textContent = 'DISCONNECT';
+                document.getElementById('connectBtn').disabled = false;
+                console.log('[WS] Connected to', WS_URL);
+            };
+
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                // console.log('[WS] Received:', msg.type);
+                handleMessage(msg);
+            };
+
+            ws.onclose = () => {
+                console.log('[WS] Disconnected');
+                cleanup();
+            };
+
+            ws.onerror = (err) => {
+                console.error('[WS] Error:', err);
+                updateStatus('ws', 'error', 'ERROR');
+                cleanup();
+            };
+        }
+
+        function disconnect() {
+            if (ws) ws.close();
+            cleanup();
+        }
+
+        function cleanup() {
+            connected = false;
+            if (pc) { pc.close(); pc = null; }
+            updateStatus('ws', 'error', 'DISCONNECTED');
+            updateStatus('rtc', 'error', 'NO VIDEO');
+            document.getElementById('connectBtn').textContent = 'CONNECT';
+            document.getElementById('connectBtn').disabled = false;
+
+            // Hide all videos
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`video_${i}`).style.display = 'none';
+                document.getElementById(`offline_${i}`).style.display = 'flex';
+                document.getElementById(`stats_${i}`).textContent = '';
+            }
+        }
+
+        // ===== Message Handling =====
+        function handleMessage(msg) {
+            switch (msg.type) {
+                case 'camera_list':
+                    cameras = msg.cameras || [];
+                    console.log('[Cameras]', cameras);
+                    cameras.forEach((cam, i) => {
+                        if (i < 4) {
+                            document.getElementById(`label_${i}`).textContent = cam.name.toUpperCase();
+                        }
+                    });
+                    break;
+
+                case 'offer':
+                    handleOffer(msg);
+                    break;
+
+                case 'candidate':
+                    handleCandidate(msg);
+                    break;
+
+                case 'error':
+                    console.error('[Server Error]', msg.message);
+                    alert('Server: ' + msg.message);
+                    break;
+            }
+        }
+
+        // ===== WebRTC =====
+        async function handleOffer(msg) {
+            console.log('[RTC] Received offer');
+            updateStatus('rtc', 'connecting', 'NEGOTIATING');
+
+            pc = new RTCPeerConnection({
+                iceServers: []  // Local network, no STUN needed
+            });
+
+            // Track received
+            let trackIndex = 0;
+            pc.ontrack = (event) => {
+                console.log('[RTC] Track received:', event.track.kind, event.transceiver.mid);
+
+                const idx = trackIndex++;
+                if (idx >= 4) return;
+
+                const video = document.getElementById(`video_${idx}`);
+                const offline = document.getElementById(`offline_${idx}`);
+
+                // Assign stream to video element
+                const stream = new MediaStream([event.track]);
+                video.srcObject = stream;
+                video.style.display = 'block';
+                offline.style.display = 'none';
+
+                event.track.onended = () => {
+                    video.style.display = 'none';
+                    offline.style.display = 'flex';
+                };
+
+                // Start stats monitoring for this track
+                monitorTrackStats(idx, event.track);
+            };
+
+            pc.oniceconnectionstatechange = () => {
+                console.log('[RTC] ICE state:', pc.iceConnectionState);
+                switch (pc.iceConnectionState) {
+                    case 'connected':
+                    case 'completed':
+                        updateStatus('rtc', 'connected', 'STREAMING');
+                        break;
+                    case 'disconnected':
+                        updateStatus('rtc', 'connecting', 'RECONNECTING');
+                        break;
+                    case 'failed':
+                    case 'closed':
+                        updateStatus('rtc', 'error', 'DISCONNECTED');
+                        break;
+                }
+            };
+
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    ws.send(JSON.stringify({
+                        type: 'candidate',
+                        candidate: event.candidate.candidate,
+                        sdpMid: event.candidate.sdpMid
+                    }));
+                }
+            };
+
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: msg.sdp
+                }));
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                ws.send(JSON.stringify({
+                    type: 'answer',
+                    sdp: answer.sdp
+                }));
+
+                console.log('[RTC] Answer sent');
+            } catch (err) {
+                console.error('[RTC] Error:', err);
+                updateStatus('rtc', 'error', 'ERROR');
+            }
+        }
+
+        function handleCandidate(msg) {
+            if (pc && msg.candidate) {
+                pc.addIceCandidate(new RTCIceCandidate({
+                    candidate: msg.candidate,
+                    sdpMid: msg.sdpMid || ''
+                })).catch(err => console.warn('[RTC] Add candidate error:', err));
+            }
+        }
+
+        // ===== Stats Monitoring =====
+        function monitorTrackStats(idx, track) {
+            if (!pc) return;
+
+            setInterval(async () => {
+                if (!pc || pc.connectionState === 'closed') return;
+
+                try {
+                    const stats = await pc.getStats(track);
+                    stats.forEach(report => {
+                        if (report.type === 'inbound-rtp' && report.kind === 'video') {
+                            const fps = report.framesPerSecond || 0;
+                            const width = report.frameWidth || 0;
+                            const height = report.frameHeight || 0;
+                            // const bytesReceived = report.bytesReceived || 0;
+
+                            let statsText = '';
+                            if (width && height) statsText += `${width}x${height} `;
+                            if (fps) statsText += `@${Math.round(fps)}FPS`;
+
+                            const statsEl = document.getElementById(`stats_${idx}`);
+                            if (statsEl) statsEl.textContent = statsText.trim();
+                        }
+                    });
+                } catch (e) { /* ignore */ }
+            }, 1000);
+        }
+
+        // ===== Status UI =====
+        function updateStatus(which, state, text) {
+            const dot = document.getElementById(`${which}Dot`);
+            const label = document.getElementById(`${which}Status`);
+
+            // remove all classes
+            dot.classList.remove('connected', 'error', 'connecting');
+
+            if (state) dot.classList.add(state);
+            label.textContent = text;
+        }
+
+        // Initial state
+        updateStatus('ws', '', 'DISCONNECTED');
+        updateStatus('rtc', '', 'NO VIDEO');
+    </script>
+
+</body>
+
+</html>

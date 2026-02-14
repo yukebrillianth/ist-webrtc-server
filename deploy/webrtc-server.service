@@ -1,0 +1,28 @@
+[Unit]
+Description=IST WebRTC Camera Server - Remotely Operated Forklift
+After=network.target
+
+[Service]
+Type=simple
+User=ist
+Group=ist
+WorkingDirectory=/opt/webrtc-server
+ExecStart=/opt/webrtc-server/webrtc-server --config /opt/webrtc-server/config.yaml
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/webrtc-server
+ProtectHome=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=1G
+
+[Install]
+WantedBy=multi-user.target

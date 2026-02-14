@@ -1,0 +1,76 @@
+#include "config.h"
+#include <yaml-cpp/yaml.h>
+#include <spdlog/spdlog.h>
+#include <stdexcept>
+#include <algorithm>
+
+namespace ist {
+
+static CameraType parse_camera_type(const std::string& type_str) {
+    std::string lower = type_str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == "rtsp") return CameraType::RTSP;
+    if (lower == "usb")  return CameraType::USB;
+    if (lower == "test") return CameraType::TEST;
+    throw std::runtime_error("Unknown camera type: " + type_str);
+}
+
+AppConfig load_config(const std::string& path) {
+    spdlog::info("Loading configuration from: {}", path);
+
+    YAML::Node root;
+    try {
+        root = YAML::LoadFile(path);
+    } catch (const YAML::Exception& e) {
+        throw std::runtime_error("Failed to load config file: " + std::string(e.what()));
+    }
+
+    AppConfig config;
+
+    // Server config
+    if (auto server = root["server"]) {
+        if (server["port"])  config.server.port = server["port"].as<uint16_t>();
+        if (server["bind"])  config.server.bind = server["bind"].as<std::string>();
+    }
+
+    // Cameras
+    if (auto cameras = root["cameras"]) {
+        for (const auto& cam : cameras) {
+            CameraConfig cc;
+            cc.id      = cam["id"].as<std::string>();
+            cc.name    = cam["name"].as<std::string>();
+            cc.type    = parse_camera_type(cam["type"].as<std::string>());
+            cc.uri     = cam["uri"].as<std::string>();
+            if (cam["width"])   cc.width   = cam["width"].as<int>();
+            if (cam["height"])  cc.height  = cam["height"].as<int>();
+            if (cam["fps"])     cc.fps     = cam["fps"].as<int>();
+            if (cam["bitrate"]) cc.bitrate = cam["bitrate"].as<int>();
+            config.cameras.push_back(std::move(cc));
+        }
+    }
+
+    if (config.cameras.empty()) {
+        throw std::runtime_error("No cameras configured");
+    }
+
+    // WebRTC config
+    if (auto webrtc = root["webrtc"]) {
+        if (webrtc["stun_server"])  config.webrtc.stun_server = webrtc["stun_server"].as<std::string>();
+        if (webrtc["max_clients"])  config.webrtc.max_clients = webrtc["max_clients"].as<int>();
+    }
+
+    spdlog::info("Configuration loaded: {} cameras, port {}, max {} clients",
+                 config.cameras.size(), config.server.port, config.webrtc.max_clients);
+
+    for (const auto& cam : config.cameras) {
+        std::string type_str = (cam.type == CameraType::RTSP) ? "RTSP" :
+                               (cam.type == CameraType::USB)  ? "USB"  : "TEST";
+        spdlog::info("  Camera [{}] '{}' type={} uri={} {}x{}@{}fps",
+                     cam.id, cam.name, type_str, cam.uri,
+                     cam.width, cam.height, cam.fps);
+    }
+
+    return config;
+}
+
+} // namespace ist
