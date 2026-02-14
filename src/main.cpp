@@ -17,10 +17,18 @@
 #include <getopt.h>
 
 static std::atomic<bool> g_running{true};
+static std::atomic<int>  g_signal_count{0};
 
 static void signal_handler(int sig) {
-    spdlog::info("Received signal {}, shutting down...", sig);
-    g_running.store(false);
+    int count = g_signal_count.fetch_add(1) + 1;
+    if (count == 1) {
+        spdlog::info("Received signal {}, shutting down gracefully...", sig);
+        g_running.store(false);
+    } else {
+        // Second signal = force exit
+        spdlog::warn("Forced exit (signal {} received {} times)", sig, count);
+        _exit(1);
+    }
 }
 
 static void print_usage(const char* program) {
@@ -208,16 +216,34 @@ int main(int argc, char* argv[]) {
             }
         }
 
-        // Graceful shutdown
+        // Graceful shutdown with timeout
         spdlog::info("Shutting down...");
 
-        // Stop cameras first
-        for (auto& camera : cameras) {
-            camera->stop();
+        // Run shutdown in a thread with timeout
+        std::atomic<bool> shutdown_done{false};
+        std::thread shutdown_thread([&]() {
+            // Stop cameras first
+            for (auto& camera : cameras) {
+                camera->stop();
+            }
+            // Stop signaling (disconnects clients)
+            signaling.stop();
+            shutdown_done.store(true);
+        });
+
+        // Wait up to 5 seconds for graceful shutdown
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (!shutdown_done.load() && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
 
-        // Stop signaling (disconnects clients)
-        signaling.stop();
+        if (shutdown_done.load()) {
+            shutdown_thread.join();
+            spdlog::info("Graceful shutdown completed");
+        } else {
+            spdlog::warn("Shutdown timed out after 5s, forcing exit");
+            shutdown_thread.detach();
+        }
 
     } catch (const std::exception& e) {
         spdlog::error("Fatal error: {}", e.what());

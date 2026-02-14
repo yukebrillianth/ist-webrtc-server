@@ -113,7 +113,16 @@ bool CameraPipeline::launch_pipeline() {
 
 void CameraPipeline::destroy_pipeline() {
     if (pipeline_) {
-        gst_element_set_state(pipeline_, GST_STATE_NULL);
+        // Use async state change with timeout to avoid blocking on RTSP
+        GstStateChangeReturn ret = gst_element_set_state(pipeline_, GST_STATE_NULL);
+        if (ret == GST_STATE_CHANGE_ASYNC) {
+            // Wait up to 3 seconds for state change
+            GstState state;
+            ret = gst_element_get_state(pipeline_, &state, nullptr, 3 * GST_SECOND);
+            if (ret == GST_STATE_CHANGE_FAILURE || ret == GST_STATE_CHANGE_ASYNC) {
+                spdlog::warn("[{}] Pipeline state change to NULL timed out, forcing", config_.id);
+            }
+        }
         if (appsink_) {
             gst_object_unref(appsink_);
             appsink_ = nullptr;
