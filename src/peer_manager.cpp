@@ -12,6 +12,12 @@ PeerManager::PeerManager(const AppConfig& config,
 PeerManager::~PeerManager() {
     std::lock_guard<std::mutex> lock(peers_mutex_);
     for (auto& [id, ctx] : peers_) {
+        // Unregister all frame callbacks
+        for (auto& [cam_idx, cb_id] : ctx->callback_ids) {
+            if (cam_idx < cameras_.size()) {
+                cameras_[cam_idx]->remove_callback(cb_id);
+            }
+        }
         if (ctx->peer) {
             ctx->peer->close();
         }
@@ -99,7 +105,7 @@ void PeerManager::create_peer(const std::string& client_id, std::shared_ptr<rtc:
 
     // Set up video tracks and create offer
     setup_tracks(*ctx);
-    create_offer(ctx);  // pass shared_ptr
+    create_offer(ctx);
 }
 
 void PeerManager::setup_tracks(PeerContext& ctx) {
@@ -119,17 +125,16 @@ void PeerManager::setup_tracks(PeerContext& ctx) {
 
         auto track = ctx.peer->addTrack(media);
 
-        // *** CRITICAL: Set up RTP packetization config + H264 packetizer ***
-        // Without this, track->send() doesn't properly wrap H264 into RTP packets
+        // Set up RTP packetization config + H264 packetizer
         auto rtpConfig = std::make_shared<rtc::RtpPacketizationConfig>(
-            ssrc,                                          // SSRC
-            cam_config.id,                                 // CNAME
-            payloadType,                                   // Payload type
+            ssrc,
+            cam_config.id,
+            payloadType,
             rtc::H264RtpPacketizer::defaultClockRate       // 90000 Hz
         );
 
         auto packetizer = std::make_shared<rtc::H264RtpPacketizer>(
-            rtc::NalUnit::Separator::LongStartSequence,    // GStreamer outputs 00 00 00 01
+            rtc::NalUnit::Separator::LongStartSequence,
             rtpConfig
         );
 
@@ -140,33 +145,38 @@ void PeerManager::setup_tracks(PeerContext& ctx) {
         spdlog::info("[{}] Added track for camera '{}' (mid={}, ssrc={}, pt={})",
                      ctx.client_id, cam_config.id, track->mid(), ssrc, payloadType);
 
-        // Register frame callback: camera -> RTP packetizer -> track -> browser
+        // Register frame callback with ID tracking for cleanup
         auto track_weak = std::weak_ptr(track);
         auto rtp_config_weak = std::weak_ptr(rtpConfig);
         auto start_time = ctx.start_time;
 
-        camera->on_frame([track_weak, rtp_config_weak, start_time,
-                          cam_id = cam_config.id](const H264Frame& frame) {
-            auto track = track_weak.lock();
-            if (!track || !track->isOpen()) return;
+        CallbackId cb_id = camera->on_frame(
+            [track_weak, rtp_config_weak, start_time,
+             cam_id = cam_config.id](const H264Frame& frame) {
+                auto track = track_weak.lock();
+                if (!track || !track->isOpen()) return;
 
-            auto rtpConfig = rtp_config_weak.lock();
-            if (!rtpConfig) return;
+                auto rtpConfig = rtp_config_weak.lock();
+                if (!rtpConfig) return;
 
-            // Calculate RTP timestamp (90kHz clock from elapsed time)
-            auto elapsed = std::chrono::steady_clock::now() - start_time;
-            auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
-            rtpConfig->timestamp = static_cast<uint32_t>(elapsed_us * 90 / 1000);
+                // Calculate RTP timestamp (90kHz clock from elapsed time)
+                auto elapsed = std::chrono::steady_clock::now() - start_time;
+                auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(elapsed).count();
+                rtpConfig->timestamp = static_cast<uint32_t>(elapsed_us * 90 / 1000);
 
-            try {
-                track->send(
-                    reinterpret_cast<const std::byte*>(frame.data.data()),
-                    frame.data.size()
-                );
-            } catch (const std::exception& e) {
-                spdlog::warn("[{}] Failed to send frame: {}", cam_id, e.what());
+                try {
+                    track->send(
+                        reinterpret_cast<const std::byte*>(frame.data.data()),
+                        frame.data.size()
+                    );
+                } catch (const std::exception& e) {
+                    spdlog::warn("[{}] Failed to send frame: {}", cam_id, e.what());
+                }
             }
-        });
+        );
+
+        // Store callback ID for cleanup when peer disconnects
+        ctx.callback_ids.push_back({i, cb_id});
     }
 }
 
@@ -174,13 +184,13 @@ void PeerManager::create_offer(std::shared_ptr<PeerContext> ctx) {
     spdlog::info("[{}] Creating SDP offer", ctx->client_id);
 
     // CRITICAL: set onLocalDescription callback BEFORE setLocalDescription
-    // Otherwise the description is generated before the callback is registered
     ctx->peer->onLocalDescription([ctx](rtc::Description desc) {
         json msg;
         msg["type"] = "offer";
         msg["sdp"]  = std::string(desc);
         
-        spdlog::info("[{}] Sending SDP offer ({} bytes)", ctx->client_id, msg["sdp"].get<std::string>().size());
+        spdlog::info("[{}] Sending SDP offer ({} bytes)",
+                     ctx->client_id, msg["sdp"].get<std::string>().size());
         try {
             if (ctx->ws && ctx->ws->isOpen()) {
                 ctx->ws->send(msg.dump());
@@ -239,7 +249,16 @@ void PeerManager::remove_peer(const std::string& client_id) {
     std::lock_guard<std::mutex> lock(peers_mutex_);
     auto it = peers_.find(client_id);
     if (it != peers_.end()) {
-        spdlog::info("[{}] Removing peer", client_id);
+        spdlog::info("[{}] Removing peer (cleaning up {} callbacks)",
+                     client_id, it->second->callback_ids.size());
+
+        // Unregister all frame callbacks for this peer
+        for (auto& [cam_idx, cb_id] : it->second->callback_ids) {
+            if (cam_idx < cameras_.size()) {
+                cameras_[cam_idx]->remove_callback(cb_id);
+            }
+        }
+
         if (it->second->peer) {
             it->second->peer->close();
         }

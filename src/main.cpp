@@ -5,6 +5,7 @@
 
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 #include <gst/gst.h>
 
 #include <csignal>
@@ -27,45 +28,60 @@ static void print_usage(const char* program) {
               << "Remotely Operated Forklift - Camera Streaming\n\n"
               << "Usage: " << program << " [options]\n\n"
               << "Options:\n"
-              << "  -c, --config <path>    Config file path (default: config.yaml)\n"
-              << "  -v, --verbose          Enable verbose logging\n"
-              << "  -h, --help             Show this help\n"
+              << "  -c, --config <path>     Config file path (default: config.yaml)\n"
+              << "  -l, --log-dir <path>    Log directory (default: ./logs)\n"
+              << "  -v, --verbose           Enable verbose logging\n"
+              << "  -h, --help              Show this help\n"
               << std::endl;
 }
 
 int main(int argc, char* argv[]) {
     // Default values
     std::string config_path = "config.yaml";
+    std::string log_dir = "./logs";
     bool verbose = false;
 
     // Parse command line arguments
     static struct option long_options[] = {
         {"config",  required_argument, nullptr, 'c'},
+        {"log-dir", required_argument, nullptr, 'l'},
         {"verbose", no_argument,       nullptr, 'v'},
         {"help",    no_argument,       nullptr, 'h'},
         {nullptr,   0,                 nullptr,  0 }
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "c:vh", long_options, nullptr)) != -1) {
+    while ((opt = getopt_long(argc, argv, "c:l:vh", long_options, nullptr)) != -1) {
         switch (opt) {
         case 'c': config_path = optarg; break;
+        case 'l': log_dir = optarg;     break;
         case 'v': verbose = true;       break;
         case 'h': print_usage(argv[0]); return 0;
         default:  print_usage(argv[0]); return 1;
         }
     }
 
-    // Setup logging
-    auto console = spdlog::stdout_color_mt("console");
-    spdlog::set_default_logger(console);
+    // Setup logging — console + rotating file
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    auto file_sink = std::make_shared<spdlog::sinks::rotating_file_sink_mt>(
+        log_dir + "/webrtc-server.log",
+        10 * 1024 * 1024,  // 10 MB per file
+        3                  // keep 3 rotated files
+    );
+
+    auto logger = std::make_shared<spdlog::logger>(
+        "main", spdlog::sinks_init_list{console_sink, file_sink}
+    );
+    spdlog::set_default_logger(logger);
     spdlog::set_level(verbose ? spdlog::level::debug : spdlog::level::info);
     spdlog::set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%^%l%$] [%t] %v");
+    spdlog::flush_on(spdlog::level::warn);  // auto-flush on warnings and above
 
     spdlog::info("==========================================");
     spdlog::info("  IST WebRTC Camera Server v1.0.0");
     spdlog::info("  Remotely Operated Forklift");
     spdlog::info("==========================================");
+    spdlog::info("Log directory: {}", log_dir);
 
     // Signal handler
     std::signal(SIGINT,  signal_handler);
@@ -77,7 +93,22 @@ int main(int argc, char* argv[]) {
 
     try {
         // Load configuration
+        spdlog::info("Loading configuration from: {}", config_path);
         auto config = ist::load_config(config_path);
+        spdlog::info("Configuration loaded: {} cameras, port {}, max {} clients",
+                     config.cameras.size(), config.server.port, config.webrtc.max_clients);
+
+        for (const auto& cam : config.cameras) {
+            std::string type_str;
+            switch (cam.type) {
+            case ist::CameraType::RTSP: type_str = "RTSP"; break;
+            case ist::CameraType::USB:  type_str = "USB";  break;
+            case ist::CameraType::TEST: type_str = "TEST"; break;
+            }
+            spdlog::info("  Camera [{}] '{}' type={} uri={} {}x{}@{}fps",
+                         cam.id, cam.name, type_str, cam.uri,
+                         cam.width, cam.height, cam.fps);
+        }
 
         // Create camera pipelines
         std::vector<std::unique_ptr<ist::CameraPipeline>> cameras;
@@ -130,24 +161,50 @@ int main(int argc, char* argv[]) {
         spdlog::info("  Max clients: {}", config.webrtc.max_clients);
         spdlog::info("------------------------------------------");
 
-        // Main loop - health monitoring
-        auto last_log = std::chrono::steady_clock::now();
+        // Main loop — health monitoring & watchdog
+        auto last_status_log = std::chrono::steady_clock::now();
+        constexpr double kStallThresholdSeconds = 10.0;
+
         while (g_running.load()) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
 
-            // Periodic status log every 30 seconds
             auto now = std::chrono::steady_clock::now();
-            if (std::chrono::duration_cast<std::chrono::seconds>(now - last_log).count() >= 30) {
-                last_log = now;
+            auto elapsed_s = std::chrono::duration_cast<std::chrono::seconds>(
+                now - last_status_log).count();
 
-                int active_cameras = 0;
+            // Periodic status + watchdog every 30 seconds
+            if (elapsed_s >= 30) {
+                last_status_log = now;
+
+                int active = 0, stalled = 0;
                 for (const auto& cam : cameras) {
-                    if (cam->is_running()) active_cameras++;
+                    if (cam->is_running()) {
+                        active++;
+                        double since_last = cam->seconds_since_last_frame();
+                        if (since_last > kStallThresholdSeconds) {
+                            stalled++;
+                            spdlog::warn("[{}] STALLED — no frames for {:.1f}s (total: {}, restarts: {})",
+                                         cam->id(), since_last,
+                                         cam->frame_count(), cam->restart_count());
+                        }
+                    } else {
+                        // Camera not running — recovery should be handling this
+                        spdlog::warn("[{}] Not running (restarts: {})",
+                                     cam->id(), cam->restart_count());
+                    }
                 }
 
-                spdlog::info("[Status] Cameras: {}/{} | Clients: {}",
-                             active_cameras, cameras.size(),
-                             peer_manager.peer_count());
+                spdlog::info("[Health] Cameras: {}/{} active, {} stalled | Clients: {} | Uptime: {}s",
+                             active, cameras.size(), stalled,
+                             peer_manager.peer_count(), elapsed_s);
+
+                // Per-camera frame stats
+                for (const auto& cam : cameras) {
+                    spdlog::debug("[{}] frames={}, last_frame={:.1f}s ago, restarts={}",
+                                  cam->id(), cam->frame_count(),
+                                  cam->seconds_since_last_frame(),
+                                  cam->restart_count());
+                }
             }
         }
 

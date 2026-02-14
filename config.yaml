@@ -24,6 +24,24 @@ cameras:
     fps: 30
     bitrate: 2000
 
+  - id: "cam_right"
+    name: "Right Camera"
+    type: "rtsp"
+    uri: "rtsp://192.168.0.4:8080/h264.sdp"
+    width: 1280
+    height: 720
+    fps: 20
+    bitrate: 2000
+
+  - id: "cam_back"
+    name: "Back Camera"
+    type: "rtsp"
+    uri: "rtsp://192.168.0.4:8080/h264.sdp"
+    width: 1280
+    height: 720
+    fps: 20
+    bitrate: 2000
+
 webrtc:
   stun_server: "" # kosong = local only
   max_clients: 3

@@ -23,6 +23,9 @@ struct PeerContext {
     std::unordered_map<std::string, std::shared_ptr<rtc::Track>> tracks;  // camera_id -> track
     std::chrono::steady_clock::time_point      start_time;
     bool                                       ready = false;
+
+    // Callback IDs for cleanup on disconnect
+    std::vector<std::pair<size_t, CallbackId>> callback_ids;  // camera_index -> callback_id
 };
 
 class PeerManager {
@@ -38,7 +41,7 @@ public:
     // Create a new peer connection for a client
     void create_peer(const std::string& client_id, std::shared_ptr<rtc::WebSocket> ws);
 
-    // Remove a peer
+    // Remove a peer (cleans up callbacks)
     void remove_peer(const std::string& client_id);
 
     // Handle incoming WebSocket messages (answer, candidate)
