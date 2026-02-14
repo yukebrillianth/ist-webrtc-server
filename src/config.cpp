@@ -1,3 +1,16 @@
+/**
+ * @file    config.cpp
+ * @brief   YAML configuration loader implementation
+ * @author  Yuke Brilliant Hestiavin <yukebrilliant@gmail.com>
+ * @date    2026
+ *
+ * @copyright Copyright (c) 2026 PT Indonesia Smelting Technology (IST)
+ *            All rights reserved. Internal use only.
+ *
+ * Parses the YAML configuration file and populates the AppConfig structure.
+ * Validates required fields and provides sensible defaults.
+ */
+
 #include "config.h"
 #include <yaml-cpp/yaml.h>
 #include <spdlog/spdlog.h>

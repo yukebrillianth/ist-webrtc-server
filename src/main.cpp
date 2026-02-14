@@ -1,3 +1,18 @@
+/**
+ * @file    main.cpp
+ * @brief   Application entry point — server lifecycle, watchdog, and logging
+ * @author  Yuke Brilliant Hestiavin <yukebrilliant@gmail.com>
+ * @date    2026
+ *
+ * @copyright Copyright (c) 2026 PT Indonesia Smelting Technology (IST)
+ *            All rights reserved. Internal use only.
+ *
+ * Entry point for the IST WebRTC Camera Server. Initializes GStreamer,
+ * loads configuration, starts camera pipelines and signaling server,
+ * runs a health monitoring watchdog, and handles graceful shutdown
+ * with timeout protection.
+ */
+
 #include "config.h"
 #include "camera_pipeline.h"
 #include "signaling_server.h"

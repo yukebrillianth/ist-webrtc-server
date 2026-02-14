@@ -1,3 +1,17 @@
+/**
+ * @file    camera_pipeline.cpp
+ * @brief   GStreamer camera capture pipeline implementation
+ * @author  Yuke Brilliant Hestiavin <yukebrilliant@gmail.com>
+ * @date    2026
+ *
+ * @copyright Copyright (c) 2026 PT Indonesia Smelting Technology (IST)
+ *            All rights reserved. Internal use only.
+ *
+ * Implements camera pipeline lifecycle management, GStreamer bus monitoring,
+ * and automatic recovery with exponential backoff for resilient operation
+ * in industrial environments.
+ */
+
 #include "camera_pipeline.h"
 #include <spdlog/spdlog.h>
 #include <cstring>
@@ -277,7 +291,7 @@ void CameraPipeline::schedule_restart() {
         spdlog::info("[{}] Pipeline restarted successfully (attempt {})", config_.id, attempt);
     } else {
         // Exponential backoff: 1 → 2 → 4 → 8 → 16 → 30 (cap)
-        backoff_seconds_ = std::min(backoff_seconds_ * 2, kMaxBackoff);
+        backoff_seconds_ = std::min(backoff_seconds_ * 2, kMaxBackoffSeconds);
         spdlog::error("[{}] Restart failed, next attempt in {}s", config_.id, backoff_seconds_);
 
         // Try again (recursive via loop in bus_monitor_thread)

@@ -1,3 +1,13 @@
+/**
+ * @file    peer_manager.cpp
+ * @brief   WebRTC peer connection lifecycle manager implementation
+ * @author  Yuke Brilliant Hestiavin <yukebrilliant@gmail.com>
+ * @date    2026
+ *
+ * @copyright Copyright (c) 2026 PT Indonesia Smelting Technology (IST)
+ *            All rights reserved. Internal use only.
+ */
+
 #include "peer_manager.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>

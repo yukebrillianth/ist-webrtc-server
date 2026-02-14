@@ -1,3 +1,13 @@
+/**
+ * @file    signaling_server.cpp
+ * @brief   WebSocket signaling server implementation
+ * @author  Yuke Brilliant Hestiavin <yukebrilliant@gmail.com>
+ * @date    2026
+ *
+ * @copyright Copyright (c) 2026 PT Indonesia Smelting Technology (IST)
+ *            All rights reserved. Internal use only.
+ */
+
 #include "signaling_server.h"
 #include <spdlog/spdlog.h>
 #include <algorithm>
