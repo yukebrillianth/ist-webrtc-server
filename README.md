@@ -1,4 +1,4 @@
-<p align="center">
+<p align="left">
   <img height="60" alt="IST Logo" src="https://github.com/user-attachments/assets/aa8510eb-fbbf-479d-bf4d-0bc31e30d549" />
   <img height="60" alt="MRI Logo" src="https://github.com/user-attachments/assets/ac6bdb22-16b2-4b04-933a-4e31308e6525" />
   &nbsp;&nbsp;&nbsp;&nbsp;
