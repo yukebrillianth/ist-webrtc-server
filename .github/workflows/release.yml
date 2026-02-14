@@ -1,0 +1,61 @@
+name: Build & Upload Release
+
+on:
+    release:
+        types: [published]
+
+permissions:
+    contents: write
+
+jobs:
+    build-ubuntu:
+        runs-on: ubuntu-latest
+        strategy:
+            matrix:
+                include:
+                    - arch: x86_64
+                      runner: ubuntu-latest
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Install dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y \
+                    build-essential cmake git pkg-config \
+                    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+                    libgstreamer-plugins-bad1.0-dev \
+                    gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+                    gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
+                    gstreamer1.0-libav \
+                    libssl-dev libnice-dev
+
+            - name: Configure
+              run: |
+                  mkdir -p build
+                  cd build
+                  cmake .. \
+                    -DCMAKE_BUILD_TYPE=Release \
+                    -DCMAKE_INSTALL_PREFIX=/opt/webrtc-server
+
+            - name: Build
+              run: cmake --build build -j$(nproc)
+
+            - name: Package
+              run: |
+                  mkdir -p dist/webrtc-server
+                  cp build/webrtc-server dist/webrtc-server/
+                  cp config.yaml dist/webrtc-server/
+                  cp -r web dist/webrtc-server/
+                  cp -r deploy dist/webrtc-server/
+                  cp README.md dist/webrtc-server/
+
+                  cd dist
+                  tar czf webrtc-server-${{ github.ref_name }}-linux-${{ matrix.arch }}.tar.gz webrtc-server/
+
+            - name: Upload to Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: dist/webrtc-server-${{ github.ref_name }}-linux-${{ matrix.arch }}.tar.gz
