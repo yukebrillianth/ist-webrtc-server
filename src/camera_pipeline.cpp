@@ -91,9 +91,9 @@ std::string CameraPipeline::build_pipeline_description() const {
                    " ! clockoverlay font-desc=\"Sans 36\" time-format=\"%H:%M:%S\""
                    " ! vaapih264enc rate-control=cbr bitrate=" + std::to_string(config_.bitrate) +
                    " keyframe-period=" + std::to_string(config_.fps * 2) +
-                   " ! h264parse config-interval=-1" +
-                   " ! video/x-h264,stream-format=byte-stream,alignment=au" +
-                   " ! appsink name=sink emit-signals=true sync=false" +
+                   " ! h264parse config-interval=-1"
+                   " ! video/x-h264,stream-format=byte-stream,alignment=au"
+                   " ! appsink name=sink emit-signals=true sync=false"
                    " max-buffers=2 drop=true";
         } else {
             // Software x264 encoding
