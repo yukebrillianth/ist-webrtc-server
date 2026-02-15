@@ -28,6 +28,14 @@ static CameraType parse_camera_type(const std::string& type_str) {
     throw std::runtime_error("Unknown camera type: " + type_str);
 }
 
+static EncoderType parse_encoder_type(const std::string& encoder_str) {
+    std::string lower = encoder_str;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+    if (lower == "software") return EncoderType::SOFTWARE;
+    if (lower == "vaapi")    return EncoderType::VAAPI;
+    throw std::runtime_error("Unknown encoder type: " + encoder_str);
+}
+
 AppConfig load_config(const std::string& path) {
     spdlog::info("Loading configuration from: {}", path);
 
@@ -61,6 +69,13 @@ AppConfig load_config(const std::string& path) {
             if (cam["height"])  cc.height  = cam["height"].as<int>();
             if (cam["fps"])     cc.fps     = cam["fps"].as<int>();
             if (cam["bitrate"]) cc.bitrate = cam["bitrate"].as<int>();
+            
+            // Encoder type (default: SOFTWARE)
+            cc.encoder = EncoderType::SOFTWARE;
+            if (cam["encoder"]) {
+                cc.encoder = parse_encoder_type(cam["encoder"].as<std::string>());
+            }
+            
             config.cameras.push_back(std::move(cc));
         }
     }
@@ -81,8 +96,9 @@ AppConfig load_config(const std::string& path) {
     for (const auto& cam : config.cameras) {
         std::string type_str = (cam.type == CameraType::RTSP) ? "RTSP" :
                                (cam.type == CameraType::USB)  ? "USB"  : "TEST";
-        spdlog::info("  Camera [{}] '{}' type={} uri={} {}x{}@{}fps",
-                     cam.id, cam.name, type_str, cam.uri,
+        std::string encoder_str = (cam.encoder == EncoderType::SOFTWARE) ? "software" : "vaapi";
+        spdlog::info("  Camera [{}] '{}' type={} encoder={} uri={} {}x{}@{}fps",
+                     cam.id, cam.name, type_str, encoder_str, cam.uri,
                      cam.width, cam.height, cam.fps);
     }
 

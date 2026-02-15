@@ -44,40 +44,62 @@ std::string CameraPipeline::build_pipeline_description() const {
                " max-buffers=2 drop=true";
         break;
 
-    case CameraType::USB:
-        // USB cameras need encoding
+    case CameraType::USB: {
+        // USB camera with software or hardware encoding
+        std::string encoder_pipeline;
+        if (config_.encoder == EncoderType::VAAPI) {
+            // Intel Quick Sync via VA-API
+            encoder_pipeline = "vaapih264enc rate-control=cbr bitrate=" + std::to_string(config_.bitrate) +
+                             " keyframe-period=" + std::to_string(config_.fps * 2);
+        } else {
+            // Software x264 encoding
+            encoder_pipeline = "x264enc tune=zerolatency bitrate=" + std::to_string(config_.bitrate) +
+                             " speed-preset=ultrafast" +
+                             " key-int-max=" + std::to_string(config_.fps * 2) +
+                             " bframes=0 b-adapt=false" +
+                             " sliced-threads=true threads=" + std::to_string(std::max(1u, std::thread::hardware_concurrency() / 4));
+        }
+        
         desc = "v4l2src device=" + config_.uri +
                " ! video/x-raw,width=" + std::to_string(config_.width) +
                ",height=" + std::to_string(config_.height) +
-               ",framerate=" + std::to_string(config_.fps) + "/1"
-               " ! videoconvert"
-               " ! x264enc tune=zerolatency bitrate=" + std::to_string(config_.bitrate) +
-               " speed-preset=ultrafast"
-               " key-int-max=" + std::to_string(config_.fps * 2) +
-               " bframes=0 b-adapt=false"
-               " sliced-threads=true threads=" + std::to_string(std::max(1u, std::thread::hardware_concurrency() / 4)) +
-               " ! video/x-h264,stream-format=byte-stream,alignment=au,profile=baseline"
-               " ! h264parse config-interval=-1"
-               " ! appsink name=sink emit-signals=true sync=false"
+               ",framerate=" + std::to_string(config_.fps) + "/1" +
+               " ! videoconvert" +
+               " ! " + encoder_pipeline +
+               " ! video/x-h264,stream-format=byte-stream,alignment=au,profile=baseline" +
+               " ! h264parse config-interval=-1" +
+               " ! appsink name=sink emit-signals=true sync=false" +
                " max-buffers=2 drop=true";
         break;
+    }
 
-    case CameraType::TEST:
-        // Test pattern for development
+    case CameraType::TEST: {
+        // Test pattern with software or hardware encoding
+        std::string encoder_pipeline;
+        if (config_.encoder == EncoderType::VAAPI) {
+            // Intel Quick Sync via VA-API
+            encoder_pipeline = "vaapih264enc rate-control=cbr bitrate=" + std::to_string(config_.bitrate) +
+                             " keyframe-period=" + std::to_string(config_.fps * 2);
+        } else {
+            // Software x264 encoding
+            encoder_pipeline = "x264enc tune=zerolatency bitrate=" + std::to_string(config_.bitrate) +
+                             " speed-preset=ultrafast key-int-max=" + std::to_string(config_.fps * 2) +
+                             " bframes=0 b-adapt=false";
+        }
+        
         desc = "videotestsrc is-live=true pattern=smpte"
                " ! video/x-raw,width=" + std::to_string(config_.width) +
                ",height=" + std::to_string(config_.height) +
                ",framerate=" + std::to_string(config_.fps) + "/1"
                " ! videoconvert"
                " ! clockoverlay font-desc=\"Sans 36\" time-format=\"%H:%M:%S\""
-               " ! x264enc tune=zerolatency bitrate=" + std::to_string(config_.bitrate) +
-               " speed-preset=ultrafast key-int-max=" + std::to_string(config_.fps * 2) +
-               " bframes=0 b-adapt=false"
+               " ! " + encoder_pipeline +
                " ! video/x-h264,stream-format=byte-stream,alignment=au,profile=baseline"
                " ! h264parse config-interval=-1"
                " ! appsink name=sink emit-signals=true sync=false"
                " max-buffers=2 drop=true";
         break;
+    }
     }
 
     return desc;

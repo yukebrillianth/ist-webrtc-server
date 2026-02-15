@@ -32,6 +32,7 @@ Program C++ untuk streaming 4 kamera (RTSP/USB) dari forklift ke control room me
 
 - **Multi-camera streaming** — Up to 4 cameras (RTSP, USB, test pattern) over single PeerConnection
 - **Low latency** — Zero-copy H264 passthrough for RTSP, `zerolatency` x264 for USB
+- **Hardware encoding** — Intel Quick Sync support via VA-API (80-90% CPU reduction for USB/TEST)
 - **Auto-recovery** — Pipeline auto-restart with exponential backoff (1s → 2s → 4s → ... → 30s cap)
 - **GStreamer bus monitoring** — Handles ERROR, WARNING, and EOS events automatically
 - **Health watchdog** — Detects stalled cameras (no frames > 10s), logs health every 30s
@@ -56,9 +57,11 @@ sudo apt-get update && sudo apt-get install -y \
     libgstreamer-plugins-bad1.0-dev \
     gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
     gstreamer1.0-plugins-bad gstreamer1.0-plugins-ugly \
-    gstreamer1.0-libav \
-    libssl-dev libnice-dev
+    gstreamer1.0-libav gstreamer1.0-vaapi \
+    libssl-dev libnice-dev intel-media-va-driver
 ```
+
+> **Note**: `gstreamer1.0-vaapi` and `intel-media-va-driver` are required for Intel Quick Sync hardware encoding. Skip these if using software encoding only.
 
 ## Build
 

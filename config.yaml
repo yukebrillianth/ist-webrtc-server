@@ -8,12 +8,13 @@ server:
 cameras:
   - id: "cam_front"
     name: "Front Camera"
-    type: "rtsp" # rtsp | usb | test
+    type: "test" # rtsp | usb | test
     uri: "rtsp://192.168.0.4:8080/h264.sdp"
     width: 1280
     height: 720
-    fps: 20
+    fps: 30
     bitrate: 2000 # kbps, hanya untuk USB/test (RTSP sudah encoded)
+    encoder: "software" # software | vaapi (Intel Quick Sync, USB/TEST only)
 
   - id: "cam_left"
     name: "Left Camera"
@@ -26,20 +27,38 @@ cameras:
 
   - id: "cam_right"
     name: "Right Camera"
-    type: "rtsp"
+    type: "test"
     uri: "rtsp://192.168.0.4:8080/h264.sdp"
     width: 1280
     height: 720
-    fps: 20
+    fps: 30
     bitrate: 2000
 
   - id: "cam_back"
     name: "Back Camera"
-    type: "rtsp"
+    type: "test"
     uri: "rtsp://192.168.0.4:8080/h264.sdp"
     width: 1280
     height: 720
-    fps: 20
+    fps: 30
+    bitrate: 2000
+
+  - id: "cam_back2"
+    name: "Back Camera 2"
+    type: "test"
+    uri: "test://192.168.0.4:8080/h264.sdp"
+    width: 1280
+    height: 720
+    fps: 30
+    bitrate: 2000
+
+  - id: "cam_back3"
+    name: "Back Camera 3"
+    type: "test"
+    uri: "rtsp://192.168.0.4:8080/h264.sdp"
+    width: 1280
+    height: 720
+    fps: 30
     bitrate: 2000
 
 webrtc:

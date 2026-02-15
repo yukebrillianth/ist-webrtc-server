@@ -29,6 +29,14 @@ enum class CameraType {
 };
 
 /**
+ * @brief Video encoder backend selection
+ */
+enum class EncoderType {
+    SOFTWARE,  ///< x264enc (CPU-based, slower but compatible)
+    VAAPI      ///< vaapih264enc (Intel Quick Sync via VA-API, requires hardware support)
+};
+
+/**
  * @brief Configuration for a single camera source
  */
 struct CameraConfig {
@@ -40,6 +48,7 @@ struct CameraConfig {
     int         height;     ///< Capture height in pixels
     int         fps;        ///< Target frame rate
     int         bitrate;    ///< Target bitrate in kbps (USB/TEST encoding only)
+    EncoderType encoder;    ///< Encoder backend (SOFTWARE or VAAPI, USB/TEST only)
 };
 
 /**
