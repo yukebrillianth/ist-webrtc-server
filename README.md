@@ -106,6 +106,7 @@ cameras:
 webrtc:
   stun_server: "" # kosong = local only (recommended untuk jaringan lokal)
   max_clients: 3
+  mtu: 1200 # MTU untuk ICE defaultnya 1200 (opsional)
 ```
 
 Tipe kamera:

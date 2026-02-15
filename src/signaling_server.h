@@ -24,76 +24,78 @@
 #include <unordered_map>
 #include <string>
 
-namespace ist {
+namespace ist
+{
 
-using json = nlohmann::json;
+    using json = nlohmann::json;
 
-/// Callback invoked when a new client WebSocket connection is established
-using ClientConnectCallback = std::function<void(const std::string& client_id,
-                                                  std::shared_ptr<rtc::WebSocket> ws)>;
+    /// Callback invoked when a new client WebSocket connection is established
+    using ClientConnectCallback = std::function<void(const std::string &client_id,
+                                                     std::shared_ptr<rtc::WebSocket> ws)>;
 
-/// Callback invoked when a client disconnects (clean close or error)
-using ClientDisconnectCallback = std::function<void(const std::string& client_id)>;
-
-/**
- * @brief WebSocket signaling server for WebRTC session negotiation
- *
- * Manages the WebSocket server lifecycle and routes signaling messages
- * between control room clients and the PeerManager. Enforces a maximum
- * client limit to prevent resource exhaustion.
- *
- * Thread Safety:
- *   - All public methods are thread-safe
- *   - Callbacks are invoked from libdatachannel's internal threads
- */
-class SignalingServer {
-public:
-    explicit SignalingServer(const AppConfig& config);
-    ~SignalingServer();
-
-    // Non-copyable, non-movable
-    SignalingServer(const SignalingServer&) = delete;
-    SignalingServer& operator=(const SignalingServer&) = delete;
+    /// Callback invoked when a client disconnects (clean close or error)
+    using ClientDisconnectCallback = std::function<void(const std::string &client_id)>;
 
     /**
-     * @brief  Initialize and start the WebSocket server
-     * @return true on success, false if the port is unavailable
+     * @brief WebSocket signaling server for WebRTC session negotiation
+     *
+     * Manages the WebSocket server lifecycle and routes signaling messages
+     * between control room clients and the PeerManager. Enforces a maximum
+     * client limit to prevent resource exhaustion.
+     *
+     * Thread Safety:
+     *   - All public methods are thread-safe
+     *   - Callbacks are invoked from libdatachannel's internal threads
      */
-    bool start();
+    class SignalingServer
+    {
+    public:
+        explicit SignalingServer(const AppConfig &config);
+        ~SignalingServer();
 
-    /** @brief Gracefully close all client connections and stop the server */
-    void stop();
+        // Non-copyable, non-movable
+        SignalingServer(const SignalingServer &) = delete;
+        SignalingServer &operator=(const SignalingServer &) = delete;
 
-    /** @brief Register callback for new client connections */
-    void on_client_connect(ClientConnectCallback cb)       { on_connect_ = std::move(cb); }
+        /**
+         * @brief  Initialize and start the WebSocket server
+         * @return true on success, false if the port is unavailable
+         */
+        bool start();
 
-    /** @brief Register callback for client disconnections */
-    void on_client_disconnect(ClientDisconnectCallback cb)  { on_disconnect_ = std::move(cb); }
+        /** @brief Gracefully close all client connections and stop the server */
+        void stop();
 
-    /** @brief Send a JSON message to a specific connected client */
-    void send_to_client(const std::string& client_id, const json& msg);
+        /** @brief Register callback for new client connections */
+        void on_client_connect(ClientConnectCallback cb) { on_connect_ = std::move(cb); }
 
-    /** @brief Broadcast a JSON message to all connected clients */
-    void broadcast(const json& msg);
+        /** @brief Register callback for client disconnections */
+        void on_client_disconnect(ClientDisconnectCallback cb) { on_disconnect_ = std::move(cb); }
 
-    /** @brief Get the current number of connected clients */
-    size_t client_count() const;
+        /** @brief Send a JSON message to a specific connected client */
+        void send_to_client(const std::string &client_id, const json &msg);
 
-private:
-    void handle_message(const std::string& client_id, const std::string& message);
-    void remove_client(const std::string& client_id);
-    std::string generate_client_id();
+        /** @brief Broadcast a JSON message to all connected clients */
+        void broadcast(const json &msg);
 
-    AppConfig                config_;
-    std::shared_ptr<rtc::WebSocketServer> server_;
+        /** @brief Get the current number of connected clients */
+        size_t client_count() const;
 
-    mutable std::mutex       clients_mutex_;
-    std::unordered_map<std::string, std::shared_ptr<rtc::WebSocket>> clients_;
+    private:
+        void handle_message(const std::string &client_id, const std::string &message);
+        void remove_client(const std::string &client_id);
+        std::string generate_client_id();
 
-    ClientConnectCallback    on_connect_;
-    ClientDisconnectCallback on_disconnect_;
+        AppConfig config_;
+        std::shared_ptr<rtc::WebSocketServer> server_;
 
-    int client_counter_ = 0;  ///< Monotonic counter for unique client IDs
-};
+        mutable std::mutex clients_mutex_;
+        std::unordered_map<std::string, std::shared_ptr<rtc::WebSocket>> clients_;
+
+        ClientConnectCallback on_connect_;
+        ClientDisconnectCallback on_disconnect_;
+
+        int client_counter_ = 0; ///< Monotonic counter for unique client IDs
+    };
 
 } // namespace ist

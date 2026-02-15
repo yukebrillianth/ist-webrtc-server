@@ -26,93 +26,96 @@
 #include <string>
 #include <chrono>
 
-namespace ist {
+namespace ist
+{
 
-using json = nlohmann::json;
-
-/**
- * @brief Per-client WebRTC session state
- *
- * Holds all resources associated with a single control room client,
- * including the PeerConnection, video tracks, and registered frame
- * callback IDs for proper cleanup on disconnection.
- */
-struct PeerContext {
-    std::string                                client_id;     ///< Unique client identifier
-    std::shared_ptr<rtc::PeerConnection>       peer;          ///< WebRTC peer connection
-    std::shared_ptr<rtc::WebSocket>            ws;            ///< Signaling WebSocket
-    std::unordered_map<std::string, std::shared_ptr<rtc::Track>> tracks;  ///< camera_id → track
-    std::chrono::steady_clock::time_point      start_time;    ///< Session start time
-    bool                                       ready = false; ///< True after SDP answer received
-
-    /// Registered frame callback IDs for cleanup (camera_index, callback_id)
-    std::vector<std::pair<size_t, CallbackId>> callback_ids;
-};
-
-/**
- * @brief Manages WebRTC PeerConnection lifecycle for all clients
- *
- * Creates a PeerConnection per client with one SendOnly video track per
- * camera. Handles the full WebRTC negotiation flow (offer → answer → ICE)
- * and properly cleans up frame callbacks when clients disconnect.
- *
- * Thread Safety:
- *   - All public methods are thread-safe (protected by peers_mutex_)
- *   - Frame callbacks are invoked from GStreamer pipeline threads
- */
-class PeerManager {
-public:
-    PeerManager(const AppConfig& config,
-                std::vector<std::unique_ptr<CameraPipeline>>& cameras);
-    ~PeerManager();
-
-    // Non-copyable, non-movable
-    PeerManager(const PeerManager&) = delete;
-    PeerManager& operator=(const PeerManager&) = delete;
+    using json = nlohmann::json;
 
     /**
-     * @brief Create a new PeerConnection for a client
+     * @brief Per-client WebRTC session state
      *
-     * Sets up video tracks for all cameras, configures RTP packetization,
-     * registers frame callbacks, and initiates SDP offer generation.
-     *
-     * @param client_id  Unique client identifier
-     * @param ws         Client's signaling WebSocket connection
+     * Holds all resources associated with a single control room client,
+     * including the PeerConnection, video tracks, and registered frame
+     * callback IDs for proper cleanup on disconnection.
      */
-    void create_peer(const std::string& client_id, std::shared_ptr<rtc::WebSocket> ws);
+    struct PeerContext
+    {
+        std::string client_id;                                               ///< Unique client identifier
+        std::shared_ptr<rtc::PeerConnection> peer;                           ///< WebRTC peer connection
+        std::shared_ptr<rtc::WebSocket> ws;                                  ///< Signaling WebSocket
+        std::unordered_map<std::string, std::shared_ptr<rtc::Track>> tracks; ///< camera_id → track
+        std::chrono::steady_clock::time_point start_time;                    ///< Session start time
+        bool ready = false;                                                  ///< True after SDP answer received
+
+        /// Registered frame callback IDs for cleanup (camera_index, callback_id)
+        std::vector<std::pair<size_t, CallbackId>> callback_ids;
+    };
 
     /**
-     * @brief Remove a peer and clean up all associated resources
+     * @brief Manages WebRTC PeerConnection lifecycle for all clients
      *
-     * Unregisters all frame callbacks for this peer from camera pipelines
-     * to prevent callback accumulation, then closes the PeerConnection.
+     * Creates a PeerConnection per client with one SendOnly video track per
+     * camera. Handles the full WebRTC negotiation flow (offer → answer → ICE)
+     * and properly cleans up frame callbacks when clients disconnect.
      *
-     * @param client_id  Client to remove
+     * Thread Safety:
+     *   - All public methods are thread-safe (protected by peers_mutex_)
+     *   - Frame callbacks are invoked from GStreamer pipeline threads
      */
-    void remove_peer(const std::string& client_id);
+    class PeerManager
+    {
+    public:
+        PeerManager(const AppConfig &config,
+                    std::vector<std::unique_ptr<CameraPipeline>> &cameras);
+        ~PeerManager();
 
-    /**
-     * @brief Handle an incoming signaling message from a client
-     * @param client_id  Source client identifier
-     * @param msg        Parsed JSON message (type: answer, candidate, request_stream)
-     */
-    void handle_message(const std::string& client_id, const json& msg);
+        // Non-copyable, non-movable
+        PeerManager(const PeerManager &) = delete;
+        PeerManager &operator=(const PeerManager &) = delete;
 
-    /** @brief Get the number of active peer connections */
-    size_t peer_count() const;
+        /**
+         * @brief Create a new PeerConnection for a client
+         *
+         * Sets up video tracks for all cameras, configures RTP packetization,
+         * registers frame callbacks, and initiates SDP offer generation.
+         *
+         * @param client_id  Unique client identifier
+         * @param ws         Client's signaling WebSocket connection
+         */
+        void create_peer(const std::string &client_id, std::shared_ptr<rtc::WebSocket> ws);
 
-private:
-    /// Set up video tracks with H264RtpPacketizer for each camera
-    void setup_tracks(PeerContext& ctx);
+        /**
+         * @brief Remove a peer and clean up all associated resources
+         *
+         * Unregisters all frame callbacks for this peer from camera pipelines
+         * to prevent callback accumulation, then closes the PeerConnection.
+         *
+         * @param client_id  Client to remove
+         */
+        void remove_peer(const std::string &client_id);
 
-    /// Generate and send SDP offer to the client
-    void create_offer(std::shared_ptr<PeerContext> ctx);
+        /**
+         * @brief Handle an incoming signaling message from a client
+         * @param client_id  Source client identifier
+         * @param msg        Parsed JSON message (type: answer, candidate, request_stream)
+         */
+        void handle_message(const std::string &client_id, const json &msg);
 
-    AppConfig                                     config_;
-    std::vector<std::unique_ptr<CameraPipeline>>& cameras_;
+        /** @brief Get the number of active peer connections */
+        size_t peer_count() const;
 
-    mutable std::mutex                            peers_mutex_;
-    std::unordered_map<std::string, std::shared_ptr<PeerContext>> peers_;
-};
+    private:
+        /// Set up video tracks with H264RtpPacketizer for each camera
+        void setup_tracks(PeerContext &ctx);
+
+        /// Generate and send SDP offer to the client
+        void create_offer(std::shared_ptr<PeerContext> ctx);
+
+        AppConfig config_;
+        std::vector<std::unique_ptr<CameraPipeline>> &cameras_;
+
+        mutable std::mutex peers_mutex_;
+        std::unordered_map<std::string, std::shared_ptr<PeerContext>> peers_;
+    };
 
 } // namespace ist
