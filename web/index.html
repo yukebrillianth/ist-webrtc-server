@@ -101,10 +101,14 @@
             flex: 1;
             padding: 4px;
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(3, 1fr);
             grid-template-rows: 1fr 1fr;
             gap: 4px;
             background-color: #000;
+        }
+
+        .grid-container.cols-2 {
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .camera-panel {
@@ -279,9 +283,12 @@
     </div>
 
     <script>
+        // ===== Config =====
+        const MAX_CAMERAS = 6;
+
         // Generating Camera Grid Dynamically
         const cameraGrid = document.getElementById('cameraGrid');
-        for (let i = 0; i < 4; i++) {
+        for (let i = 0; i < MAX_CAMERAS; i++) {
             const div = document.createElement('div');
             div.className = 'camera-panel';
             div.id = `cell_${i}`;
@@ -302,6 +309,27 @@
             `;
             cameraGrid.appendChild(div);
         }
+
+        // Adapt grid layout based on camera count
+        function updateGridLayout(count) {
+            if (count <= 4) {
+                cameraGrid.classList.add('cols-2');
+                // Hide extra panels
+                for (let i = count; i < MAX_CAMERAS; i++) {
+                    document.getElementById(`cell_${i}`).style.display = 'none';
+                }
+                for (let i = 0; i < count; i++) {
+                    document.getElementById(`cell_${i}`).style.display = '';
+                }
+            } else {
+                cameraGrid.classList.remove('cols-2');
+                for (let i = 0; i < MAX_CAMERAS; i++) {
+                    document.getElementById(`cell_${i}`).style.display = i < count ? '' : 'none';
+                }
+            }
+        }
+        // Default: show 4 cameras in 2-col mode
+        updateGridLayout(4);
 
         // Version
         const versionEl = document.getElementById('version')
@@ -384,11 +412,12 @@
             document.getElementById('connectBtn').disabled = false;
 
             // Hide all videos & reset stats
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < MAX_CAMERAS; i++) {
                 document.getElementById(`video_${i}`).style.display = 'none';
                 document.getElementById(`offline_${i}`).style.display = 'flex';
                 resetStats(i);
             }
+            updateGridLayout(4);
         }
 
         function resetStats(idx) {
@@ -408,8 +437,9 @@
                 case 'camera_list':
                     cameras = msg.cameras || [];
                     console.log('[Cameras]', cameras);
+                    updateGridLayout(cameras.length);
                     cameras.forEach((cam, i) => {
-                        if (i < 4) {
+                        if (i < MAX_CAMERAS) {
                             const label = document.getElementById(`label_${i}`);
                             label.innerHTML = `<span class="cam-id">CAM ${i + 1}</span>${cam.name.toUpperCase()}`;
                         }
@@ -446,7 +476,7 @@
                 console.log('[RTC] Track received:', event.track.kind, event.transceiver.mid);
 
                 const idx = trackIndex++;
-                if (idx >= 4) return;
+                if (idx >= MAX_CAMERAS) return;
 
                 const video = document.getElementById(`video_${idx}`);
                 const offline = document.getElementById(`offline_${idx}`);
