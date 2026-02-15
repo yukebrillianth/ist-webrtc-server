@@ -71,7 +71,7 @@ namespace ist
     {
         std::string stun_server; ///< STUN server URI (empty = local network only)
         int max_clients;         ///< Maximum concurrent WebRTC clients
-        int mtu;
+        int mtu = 0;            ///< RTP MTU size (0 = use libdatachannel default 1200)
     };
 
     /**

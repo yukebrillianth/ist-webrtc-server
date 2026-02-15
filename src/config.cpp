@@ -61,7 +61,7 @@ namespace ist
         AppConfig config;
 
         // Version config constant
-        config.version = "v1.2.1";
+        config.version = "v1.2.2";
 
         // Server config
         if (auto server = root["server"])

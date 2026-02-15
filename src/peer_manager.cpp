@@ -53,7 +53,13 @@ namespace ist
 
         // Configure PeerConnection
         rtc::Configuration rtc_config;
-        rtc_config.mtu = config_.webrtc.mtu;
+
+        // Set MTU if specified.....
+        if (config_.webrtc.mtu > 0)
+        {
+            spdlog::info("[{}] Setting WebRTC MTU to {}", client_id, config_.webrtc.mtu);
+            rtc_config.mtu = config_.webrtc.mtu;
+        }
 
         if (!config_.webrtc.stun_server.empty())
         {
